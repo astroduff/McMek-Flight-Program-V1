@@ -364,9 +364,9 @@ PayloadTest:  'Payload test procedures and flight preparation utilities (priming
   DEBUG "Set Counter reset LOW  = 2",CR
   DEBUG "Toggle camera LED      = 3",CR
   DEBUG "Read encoder           = 4",CR
-  DEBUG "Turn coils Cycle On    = 5",CR
-  DEBUG "Turn coils Off         = 6",CR
-  DEBUG "Turn coils pair A On   = 7",CR
+  DEBUG "Turn coil cycle On    = 5",CR
+  DEBUG "Turn coil pairs Off   = 6",CR
+  DEBUG "Turn coil pair B On   = 7",CR
   DEBUG "All IO Pins Off        = 0",CR
   DEBUG "Exit Payload Test      = e",CR
 Ready:

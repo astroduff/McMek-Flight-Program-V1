@@ -19,7 +19,7 @@ version   CON    1601
 '     Conditional Assemblies
 '
 #DEFINE FlyConfig = 1              '1=Set to Flight Configuration, 0=Test Configuration
-#DEFINE fastclock = 2              '0=Normal Time X1, 1=Medium Time ~X17 2=Fast Time ~X60
+#DEFINE fastclock = 1              '0=Normal Time X1, 1=Medium Time ~X17 2=Fast Time ~X60
 #DEFINE testreset = 1              '1=test reset and reset count
 #DEFINE SaySlot   = 1              '1=Say Slot with vector
 #DEFINE Sayit = 1                  '1=Say what is happening
@@ -367,7 +367,7 @@ ReturnBack:
   READ DurMin,UserVar0
   READ DurHour,UserVar1
   READ DurDay,UserVar2
-  DEBUG CR,"Event table received (H D M):",DEC uservar2," ",DEC uservar1," ",DEC uservar0,CR,CR
+  DEBUG CR,"Event table received (D H M):",DEC uservar2," ",DEC uservar1," ",DEC uservar0,CR,CR
 
   'READ Missionmin,UserVar0   'Copy Mission Clock to RAM
   'READ Missionhour,UserVar1
@@ -375,7 +375,7 @@ ReturnBack:
   UserVar3 = 0 'Set EventByte to default "no event"
 
  STORE 2      'Event Table is stored in this slot
-  FOR TempReg0 = 0 TO 10
+  FOR TempReg0 = 0 TO 11
     READ ETable+(TempReg0*5+0),TempReg1 : IF TempReg1 <> UserVar2 THEN GOTO NextRow  'Check Day
     READ ETable+(TempReg0*5+1),TempReg1 : IF TempReg1 <> UserVar1 THEN GOTO NextRow 'Check Hour
     READ ETable+(TempReg0*5+2),TempReg1 : IF TempReg1 <> UserVar0 THEN GOTO NextRow 'Check Min
@@ -411,24 +411,27 @@ FoundEvent:
   STORE DataStorage
   BRANCH UserVar3,[Event0,    'Event 0 (do nothing)
   Event1,                     'Event 1 (Take Photo)
-  event2,                     'Event 2 (5s Pump Pulse)
+  event2,                     'Event 2 Reset 4040 counter
   event3,                     'Event 3 (Empty)
-  Event4,                     'Event 4 (Replay)
+  Event4,
   Event5,
-  Event6]
+  Event6,
+  Event7,
+  Event8]                     'Event 4 (Replay)
 
   UserVar3 = 0                 'Error
   DEBUG CR,"Event Byte is out of range",CR
   GOTO ReturnBack              'back to calling routine
 
 Event0: DEBUG CR,"REB0",CR
-        I2COUT InternI2C, PCF8574address, $00, [%00000000] 'Reset pin low
-        I2COUT InternI2C, IO_Expander, $ff, [0]
+        I2COUT InternI2C, PCF8574address, $00, [%10000000] 'Reset pin low
+        I2COUT PLi2c, IO_Expander, $ff, [$00]
+        WRITE CoilIndex, 0
 
         tempReg0 = 4 'Destination Index (EventTableReturn)
         RUN 0        'Destination Slot
 
-Event1: DEBUG CR,"REB1: TakePhoto",CR
+Event1: DEBUG CR,"REB1: TakePic",CR
          HIGH 14    'Turns on the LED's
          '
          '   Take a High Resoluation Photo of the Chamber
@@ -449,50 +452,50 @@ TakePhotoReturn:
          tempReg0 = 4 'Destination Index (EventTableReturn)
          RUN 0        'Destination Slot
 
-
-Event2: DEBUG CR,"REB4:Replay" ,CR
+Event2: DEBUG "Encoder:"
+        I2CIN PLi2c, IO_Expander, $ff, [UserVar0]
+        DEBUG BIN8 UserVar0, CR
         STORE 2
-        READ PumpIter,TempReg0
-        TempReg0 = TempReg0-1            'decrement pump iteration count
-        DEBUG "Pump Iteration ",DEC2 TempReg0,CR,CR
-        WRITE PumpIter,TempReg0          'store count in Pump Iterator
+        READ EncoderIndex, UserVar1        'fetch index
+        TempWord = UserVar1 + 208
+        UserVar0 = $FF
+        WRITE TempWord, UserVar0 'store encoder value
+        UserVar1 = UserVar1 + 1            'update log index
+        WRITE EncoderIndex, UserVar1       'write back index
+        DEBUG HEX UserVar0," Stored at ", DEC TempWord, " offset ",DEC UserVar1,CR
+        I2COUT internI2C, PCF8574address, [%11111111] 'set 4040 reset high
+        PAUSE 10
+        I2COUT internI2C, PCF8574address, [%01111111] 'set 4040 reset low
 
-        IF TempReg0 < 1 THEN
-           DEBUG "Pump Iter value = ", DEC2 tempreg0," exiting replay",CR,CR
-           WRITE PumpIter,36 'restore value
-           GOTO DmpOut 'timed out
-        ENDIF
-
-        STORE 0
-        WRITE DurDay,0 : WRITE DurHour,0 : WRITE DurMin,04 'Reset Event Table State
-        STORE 2
-          FOR TempReg0 = 3 TO 6
-          WRITE ETable+(TempReg0*5)+3,$FF 'reset tag fields to allow a repeat cycle
-        NEXT
-Event3: DEBUG CR, "Magnetic field in the same direction", CR
-        I2COUT InternI2c, H_bridge, [xcounter]
-        xcounter = $01
         tempReg0 = 4 'Destination Index (EventTableReturn)
         RUN 0
-Event4: DEBUG CR, "Magnetic field off", CR
+
+Event3: DEBUG CR, "a", CR
+        READ CoilIndex, UserVar1
+        I2COUT PLi2c, H_bridge, [UserVar1]
+
+        tempReg0 = 4 'Destination Index (EventTableReturn)
+        RUN 0
+
+Event4: DEBUG CR, "field off", CR
         I2COUT InternI2c, H_bridge, [xcounter]
         xcounter = $00
         tempReg0 = 4 'Destination Index (EventTableReturn)
         RUN 0
-Event5: DEBUG CR, "Reading counter", CR
+Event5: DEBUG CR, "z", CR
         counter = $00
         I2CIN InternI2c, IO_Expander, $ff, [counter]
         I2COUT InternI2C, PCF8574address, $00, [%00000000] 'set low - doesnt reset
         DEBUG CR, BIN8 counter, CR 'output value to debug screen
         tempReg0 = 4 'Destination Index (EventTableReturn)
         RUN 0
-Event6: DEBUG CR, "Controlling the H-Bridge Circuit", CR
+Event6: DEBUG CR, "ab", CR
         DEBUG CR,DEC xcounter, CR
         I2COUT InternI2c, H_bridge, [xcounter]
         xcounter = xcounter + 64
         tempReg0 = 4 'Destination Index (EventTableReturn)
         RUN 0
-Event7: DEBUG CR, "Combining the counter and H-Bridge", CR
+Event7: DEBUG CR, "aa", CR
         'XXXXXXXXXXXXXXXxxxENCODERxxxXXXXXXXXXXXXXXXXXXXX
         counter = $00
         I2CIN InternI2c, IO_Expander, $ff, [counter]
@@ -506,6 +509,34 @@ Event7: DEBUG CR, "Combining the counter and H-Bridge", CR
 
         tempReg0 = 4 'Destination Index (EventTableReturn)
         RUN 0
+
+
+Event8: DEBUG CR,"REB4:Replay" ,CR
+        STORE 2
+     '   READ PumpIter,TempReg0
+    '    TempReg0 = TempReg0-1            'decrement pump iteration count
+      '  DEBUG "Pump Iteration ",DEC2 TempReg0,CR,CR
+      '  WRITE PumpIter,TempReg0          'store count in Pump Iterator
+
+   '     IF TempReg0 < 1 THEN
+    '       DEBUG "Pump Iter value = ", DEC2 tempreg0," exiting replay",CR,CR
+    '       WRITE PumpIter,36 'restore value
+    '       GOTO DmpOut 'timed out
+    '    ENDIF
+
+        READ CoilIndex, UserVar0
+        IF UserVar0 < 10 THEN
+          STORE 0
+          WRITE DurDay,0 : WRITE DurHour,0 : WRITE DurMin,01 'Reset Event Table State
+          STORE 2
+          FOR TempReg0 = 1 TO 7
+            WRITE ETable+(TempReg0*5)+3,$FF 'reset tag fields to allow a repeat cycle
+          NEXT
+          UserVar0 = UserVar0+1
+        ELSE: UserVar0 = 0
+        ENDIF
+        DEBUG HEX UserVar0
+        WRITE CoilIndex, UserVar0
 DmpOut: STORE DataStorage
         tempReg0 = 4 'Destination Index (EventTableReturn)
         RUN 0        'Destination Slot
@@ -550,16 +581,16 @@ P3vector:
          '    Day  Hour  Min   Tag  EventByte
  ETable DATA  00,  00,   00,   $FF,     00   'Row 0
         DATA  00,  00,   00,   $FF,     00   'Row 1
-        DATA  00,  00,   01,   $FF,     05   'Row 2
-        DATA  00,  00,   02,   $FF,     05   'Row 3
-        DATA  00,  00,   03,   $FF,     05   'Row 4   Take Inspection Photo
-        DATA  00,  00,   04,   $FF,     00   'Row 5   5s Pump Pulse
-        DATA  00,  00,   05,   $FF,     00   'Row 6   Take photo to record Event Table State
-        DATA  00,  00,   00,   $FF,     00   'Row 7   Replay rows 5 to 7 (3 times) starting at 01:04:01
-        DATA  00,  00,   00,   $FF,     00   'Row 8   Take Replay Exit Photo to record Event Table state
-        DATA  05,  00,   00,   $FF,     00   'Row 9
-        DATA  06,  00,   00,   $FF,     00   'Row 10
-        DATA  07,  00,   00,   $FF,     00   'Row 11
+        DATA  00,  00,   01,   $FF,     02   'Row 2
+        DATA  00,  00,   02,   $FF,     08   'Row 3
+        DATA  00,  00,   03,   $FF,     01   'Row 4   Take Inspection Photo
+        DATA  00,  00,   04,   $FF,     08   'Row 5   5s Pump Pulse
+        DATA  00,  00,   05,   $FF,     02   'Row 6   Take photo to record Event Table State
+        DATA  00,  00,   06,   $FF,     02   'Row 7   Replay rows 5 to 7 (3 times) starting at 01:04:01
+        DATA  00,  00,   07,   $FF,     02   'Row 8   Take Replay Exit Photo to record Event Table state
+        DATA  00,  00,   08,   $FF,     02   'Row 9
+        DATA  00,  00,   09,   $FF,     01   'Row 10
+        DATA  07,  00,   10,   $FF,     08   'Row 11
         DATA  08,  00,   00,   $FF,     00   'Row 12
         DATA  09,  00,   00,   $FF,     00   'Row 13
         DATA  10,  00,   00,   $FF,     00   'Row 14
@@ -590,4 +621,11 @@ P3vector:
         DATA  35,  00,   00,   $FF,     00   'Row 39
         DATA  36,  00,   00,   $FF,     00   'Row 40
 
-PumpIter DATA   3  '15s loop
+null1           DATA 0
+null2           DATA 0
+CoilIndex       DATA 0   'coil current set point
+EncoderIndex    DATA 0   'pointer for logging encoder
+'should start at 0x0D00
+
+
+        DATA 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0

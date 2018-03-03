@@ -104,7 +104,7 @@ VCCby2high         CON  VCCby2+1              'Bios VCC/2 for calabration - Regu
 '
 '----------- Bios Reserved working registers ----------------------------------------
 '
-CameraRes       CON  VCCby2high+1     'Name this Bios Register (camera Resolution 320 $05 640 $07)
+CameraRes       CON  VCCby2high+1     'Name this Bios Register (camera Resoion 320 $05 640 $07)
 CameraQua       CON  CameraRes+1      'Name this Bios Register (Camera quality $02 normal, $01 Better, $00 Best)
 SlaveErr        CON  CameraQua+1      'slave MSP430 status byte (Local Slave Status)
 ActiveBank      CON  SlaveErr+1       'Name this Bios Register (Active bank)
@@ -247,7 +247,7 @@ TextBuffer         CON      $C000      'Text buffer in bank 0,1, and 2
 '
 Camera320          CON      $05        'Camera Resolution 320X240
 Camera640          CON      $07        'Camera Resolution 640X480
-CameraNormal       CON      $02        'Camera Quality Normal
+CameraNormal       CON      $02        'Camera Qual ity Normal
 CameraBetter       CON      $01        'Camera Quality Better
 CameraBest         CON      $00        'Camera Quality Best
 '
@@ -421,8 +421,9 @@ GetnextChar:
     xcounter=xcounter+1     'xcounter points to next text charator location
     IF xcounter=$FFFF THEN GOTO TextFinished  ' ERROR CONDITION
     GOTO GetnextChar        'not finished yet get the next charator
+
 TextFinished:
-    'Dump Event Table directly into 256K PROM. No entry in the S4 text table
+     'Dump Event Table directly into 256K PROM. No entry in the S4 text table
      Etable  CON $0000              'beginning of event table in slot 2
 
      xcounter = TextBuffer + LUT    'move pointer back to Look Up Table entry point
@@ -435,12 +436,25 @@ TextFinished:
          I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [text(1)] : xcounter=xcounter+1 : PAUSE 10
          I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [text(2)] : xcounter=xcounter+1 : PAUSE 10
          I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [" "] : xcounter=xcounter+1  : PAUSE 10
-
        NEXT
          I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [CR] : xcounter=xcounter+1 : PAUSE 10
-
      NEXT
      'STORE 4: WRITE LUT,EOF : TempWord1=TempWord1+1
+
+    'inserted telemetry dump after Event table (hopefully), for some reason it cant do down below in code further since the program doesnt process sequentually
+    'it should copy 250 8-bit entries from slot 2's EEROM then append it to the text file
+    I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [CR] : xcounter=xcounter+1 : PAUSE 10
+
+    FOR UserVar4 = 0 TO 225 STEP 1
+      STORE 2: READ (UserVar4 + $D0), TempReg0: STORE 4     'switch to EEROM slot 2, read then switch back to slot 4
+      'TempWord = TempReg0
+      'GOSUB Convert2BCD
+      'FOR UserVar5 = 0 TO 2 STEP 1
+      '  TempReg0 = text (UserVar5) :I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [TempReg0] :PAUSE 10 :xcounter = xcounter+1
+      'NEXT
+      I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [TempReg0]: PAUSE 10 :xcounter = xcounter+1
+      I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [" "]: PAUSE 10 :xcounter = xcounter+1
+    NEXT
 
     TempReg0 = EOF          'write end of file marker
     I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [TempReg0]  'write charator in ee2ram
@@ -451,6 +465,9 @@ TextFinished:
     '                             'The user can use the Text pointer in the current bank to add their on text
     '                             'to the output file...
     '
+    'GET TextPointer,Word xcounter           'retrieve text pointer to prepare telemetry for copying
+
+
     '******  Now fill in the values in the text (dont touch TempReg2) *****
     '
     ' file name
@@ -458,10 +475,10 @@ TextFinished:
     TempWord = (IDcodefile-Cstatus)    'point to current file name with id stored in stamp eerom
     xcounter = TextBuffer+(LastPN-ID)    'point to EERAM where file name lives in the text file output
     FOR xcounter = TextBuffer+(LastPN-ID) TO TextBuffer+(LastPN-ID)+6 'loop to move file name XX0000
-    READ TempWord,TempReg0               'get the value from stamp ee storage location
-    I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [TempReg0]  'write charator in ee2ram
-    PAUSE 10                              'wait for write
-    TempWord = TempWord+1
+      READ TempWord,TempReg0               'get the value from stamp ee storage location
+      I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [TempReg0]  'write charator in ee2ram
+      PAUSE 10                              'wait for write
+      TempWord = TempWord+1
     NEXT
     '
     ' Enter Date and Time - place ascii values in text buffer output
@@ -756,7 +773,7 @@ BCD2ASCII:
       DATA $00           'Cstatus          state and status of testing chamber
       DATA Word $0000    'TestNumber         location in EEROM
       DATA $00           'ResetNumber        Store number of reset sense last program load
-      DATA "WI"          'IDcodefile         2 alpha ID of MicroLab "ML,FF,XX,??"
+      DATA "SH"          'IDcodefile         2 alpha ID of MicroLab "ML,FF,XX,??"
       DATA "00000"       'LastPhoto          MSD  $30,$30,$30,$30,$30  lsd
       DATA $00           'LastBKupload       last bank uploaded
       DATA $00           'NextBktoLoad       next bank to load
@@ -781,19 +798,19 @@ Mtime    DATA "00D 00H 00M 00S",CR                 'Now Mission clock
 Abank    DATA "00",CR                              'this  bank for storage
          DATA "Reset counter "                     'How many resets since last program load
 Rcnt     DATA "000",CR                             'reset count
-         DATA "Ambient Temperature = "             'temperature inside the Microlab
+         DATA "Ambient Temp = "             'temperature inside the Microlab
 ATV      DATA "00.0 C",CR                          'Abinent Temp
          DATA "Ambient Humidity = "                'humidity inside the Microlab
 AHV      DATA "00%",CR                             'ambient humidity
-         DATA "Slave CPU Temperature = "           'Tempature inside slave cpu +/- 60 dC
+         DATA "Slave CPU Temp = "           'Tempature inside slave cpu +/- 60 dC
 CTV      DATA "00.0 C",CR                    '     'not accurate, but relative correct
-         DATA "Channel 0 Analog input = "
+         DATA "Channel 0 Analog in = "
 AV0      DATA "0.00 Volts",CR                      'Analog voltage input scaled to 0 to 2.5 volts
-         DATA "Channel 1 Analog input = "
+         DATA "Channel 1 Analog in = "
 AV1      DATA "0.00 Volts",CR
-         DATA "Channel 2 Analog input = "
+         DATA "Channel 2 Analog in = "
 AV2      DATA "0.00 Volts",CR
-         DATA "Channel 3 Analog input = "
+         DATA "Channel 3 Analog in = "
 AV3      DATA "0.00 Volts",CR
          DATA "3.3 Vcc = "
 VcV      DATA "0.00 Volts",CR
@@ -802,15 +819,17 @@ SStat    DATA "00xxx000",CR
          DATA "Ver 080313.00",CR
          DATA "DD HH MM FF Ev"
 LUT      DATA 0 (30)                                      'start of Event Table Dump in 256 PROM
-'         DATA EOF
+'         DATA EOF                 'origonal EOF statement
          ' To place additional Statements in the Text file for output - the EOF
          ' byte must be removed and added at the end of the additional statements as
          ' shown below. Space is limited due to the text being in the same space as the
          ' program. look at the memory map to determine the space that can be used for
          ' additional text.
 '
-'Payload1 DATA "User Statement 2",CR '
+'Payload1 DATA "Telem:",CR
+'Payload1 DATA "User Statement 2",CR
 'Payload2 DATA "User Statement 3",CR
 'Payload3 DATA "User Statement 4",CR
 '
+         DATA EOF     'moved EOF statement
 EOFmark  DATA EOF,EOF,$00
