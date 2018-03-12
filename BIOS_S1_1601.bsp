@@ -443,7 +443,7 @@ PayloadTestP4:
 'Coil test1
 PayloadTestP5:
      DEBUG CR, "Energising coils", CR
-     I2COUT PLi2c, H_bridge, [$55]
+     I2COUT PLi2c, H_bridge, [$55]     
      GOTO PayloadOptionsText
 
 'Coil test2

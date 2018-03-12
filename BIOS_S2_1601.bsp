@@ -427,6 +427,7 @@ Event0: DEBUG CR,"REB0",CR
         I2COUT InternI2C, PCF8574address, $00, [%10000000] 'Reset pin low
         I2COUT PLi2c, IO_Expander, $ff, [$00]
         WRITE CoilIndex, 0
+        WRITE TelemIndex, Word 208
 
         tempReg0 = 4 'Destination Index (EventTableReturn)
         RUN 0        'Destination Slot
@@ -448,6 +449,9 @@ TakePhotoReturn:
          'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
          '
          LOW 14     'Turns off the LED's
+
+         WRITE TelemIndex, 208   'reset the pointer for storing encoder data
+
          ' Values in return back are lost when jumping to Slot 6
          tempReg0 = 4 'Destination Index (EventTableReturn)
          RUN 0        'Destination Slot
@@ -455,16 +459,17 @@ TakePhotoReturn:
 Event2: DEBUG "Encoder:"
         I2CIN PLi2c, IO_Expander, $ff, [UserVar0]
         DEBUG BIN8 UserVar0, CR
-        STORE 2
-        READ EncoderIndex, UserVar1        'fetch index
-        TempWord = UserVar1 + 208
-        UserVar0 = $FF
-        WRITE TempWord, UserVar0 'store encoder value
-        UserVar1 = UserVar1 + 1            'update log index
-        WRITE EncoderIndex, UserVar1       'write back index
-        DEBUG HEX UserVar0," Stored at ", DEC TempWord, " offset ",DEC UserVar1,CR
+        READ TelemIndex  , TempWord        'fetch index
+
+        WRITE TempWord, UserVar0 'store encoder value at index location
+
+        DEBUG DEC UserVar0," Stored at ", DEC TempWord,CR
+
+        TempWord = TempWord + 1            'update log index
+        WRITE TelemIndex, Word TempWord     'write back index
+
         I2COUT internI2C, PCF8574address, [%11111111] 'set 4040 reset high
-        PAUSE 10
+        PAUSE 2
         I2COUT internI2C, PCF8574address, [%01111111] 'set 4040 reset low
 
         tempReg0 = 4 'Destination Index (EventTableReturn)
@@ -525,7 +530,7 @@ Event8: DEBUG CR,"REB4:Replay" ,CR
     '    ENDIF
 
         READ CoilIndex, UserVar0
-        IF UserVar0 < 10 THEN
+        IF UserVar0 < 20 THEN
           STORE 0
           WRITE DurDay,0 : WRITE DurHour,0 : WRITE DurMin,01 'Reset Event Table State
           STORE 2
@@ -535,7 +540,7 @@ Event8: DEBUG CR,"REB4:Replay" ,CR
           UserVar0 = UserVar0+1
         ELSE: UserVar0 = 0
         ENDIF
-        DEBUG HEX UserVar0
+        DEBUG HEX UserVar0, CR
         WRITE CoilIndex, UserVar0
 DmpOut: STORE DataStorage
         tempReg0 = 4 'Destination Index (EventTableReturn)
@@ -624,8 +629,8 @@ P3vector:
 null1           DATA 0
 null2           DATA 0
 CoilIndex       DATA 0   'coil current set point
-EncoderIndex    DATA 0   'pointer for logging encoder
+TelemIndex      DATA Word 0   'pointer for logging encoder
 'should start at 0x0D00
 
 
-        DATA 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+       ' DATA 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0

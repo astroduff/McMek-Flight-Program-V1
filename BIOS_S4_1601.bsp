@@ -441,20 +441,20 @@ TextFinished:
      NEXT
      'STORE 4: WRITE LUT,EOF : TempWord1=TempWord1+1
 
-    'inserted telemetry dump after Event table (hopefully), for some reason it cant do down below in code further since the program doesnt process sequentually
-    'it should copy 250 8-bit entries from slot 2's EEROM then append it to the text file
-    I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [CR] : xcounter=xcounter+1 : PAUSE 10
 
-    FOR UserVar4 = 0 TO 225 STEP 1
-      STORE 2: READ (UserVar4 + $D0), TempReg0: STORE 4     'switch to EEROM slot 2, read then switch back to slot 4
-      'TempWord = TempReg0
-      'GOSUB Convert2BCD
-      'FOR UserVar5 = 0 TO 2 STEP 1
-      '  TempReg0 = text (UserVar5) :I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [TempReg0] :PAUSE 10 :xcounter = xcounter+1
-      'NEXT
-      I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [TempReg0]: PAUSE 10 :xcounter = xcounter+1
-      I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [" "]: PAUSE 10 :xcounter = xcounter+1
+    '-----
+    'inserted telemetry dump after Event table (hopefully), for some reason it cant do down below in code further since the program doesnt process sequentually
+    'it should copy 8-bit entries from slot 2's EEROM then append it to the text file, add slot 3 memory if needed
+    I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [CR] :xcounter=xcounter+1 :PAUSE 10
+
+    FOR TempWord1 = 208 TO 300 STEP 1                    '16 bit counter start from memory location 0xD0 or 208, run to about 0x2D0 or 720
+      STORE 2: READ TempWord1, TempWord: STORE 4     'switch to EEROM slot 2, read then switch back to slot 4
+      GOSUB Convert2BCD
+      GOSUB WriteXXX
+      I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [" "] :xcounter = xcounter+1 :PAUSE 10   'append a space after each number
     NEXT
+    '-------
+
 
     TempReg0 = EOF          'write end of file marker
     I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [TempReg0]  'write charator in ee2ram
