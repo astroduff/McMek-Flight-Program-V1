@@ -364,10 +364,10 @@ PayloadTest:  'Payload test procedures and flight preparation utilities (priming
   DEBUG "Set Counter reset LOW  = 2",CR
   DEBUG "Toggle camera LED      = 3",CR
   DEBUG "Read encoder           = 4",CR
-  DEBUG "Turn coils Cycle On    = 5",CR
-  DEBUG "Turn coils Off         = 6",CR
-  DEBUG "Turn coils pair A On   = 7",CR
-  DEBUG "All IO Pins Off        = 0",CR
+  DEBUG "Coils off              = 5",CR
+  DEBUG "Coils braking          = 6",CR
+  DEBUG "Incriment Coil Power   = 7",CR
+  DEBUG "All IO Pins OFF        = 0",CR
   DEBUG "Exit Payload Test      = e",CR
 Ready:
 
@@ -435,27 +435,33 @@ PayloadTestP4:
     'read payload PCF and print contents to terminal
      I2COUT PLi2c, IO_Expander, $ff, [$00]
      UserVar5 = $55
-     DEBUG "Reading expander (var preloaded - ",HEX UserVar5,CR
+     DEBUG "Reading expander (var preloaded - ",HEX UserVar5,")",CR
      I2CIN PLi2c, IO_Expander, $ff, [UserVar5]
-     DEBUG "Retuned ",BIN8 UserVar5, CR
+     DEBUG "Update count is ",BIN8 UserVar5, CR
      GOTO PayloadOptionsText
 
 'Coil test1
 PayloadTestP5:
-     DEBUG CR, "Energising coils", CR
-     I2COUT PLi2c, H_bridge, [$55]
+     DEBUG CR, "Coils off", CR
+     I2COUT PLi2c, H_bridge, [$00]
+     UserVar4 = 0
      GOTO PayloadOptionsText
 
 'Coil test2
 PayloadTestP6:
-     DEBUG CR, "Coils off", CR
-     I2COUT PLi2c, H_bridge, [$00]
+     DEBUG CR, "Magnetic braking", CR
+     I2COUT PLi2c, H_bridge, [$01]
+     UserVar4 = 1
      GOTO PayloadOptionsText
 
 'Coil test3
 PayloadTestP7:
-     DEBUG CR, "Coils static", CR
-     I2COUT PLi2c, H_bridge, [$01]
+     DEBUG CR, "Coils now: "
+     UserVar4 = UserVar4 + 1
+     IF UserVar4 = 1 THEN UserVar4 = 2
+     IF UserVar4 > 63 THEN UserVar4 = 2
+     I2COUT PLi2c, H_bridge, [UserVar4]
+     DEBUG DEC UserVar4,CR
      GOTO PayloadOptionsText
 
 PayloadTestOff:

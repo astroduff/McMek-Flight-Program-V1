@@ -27,6 +27,12 @@ version   CON    1601
 #DEFINE MasterEnabled = 1          '1= enable checking for master input
 '
 '
+'-----------------------------------------------------------------------------------------
+TelemSlot CON 1                    'program slot to store telemetry for data capture later
+TelemOffset CON 224                'offset in slot memory to store telemetry
+'-----------------------------------------------------------------------------------------
+'
+'
 '***************************************************************************************
 '********* EEPROM Data Storage Area ****************************************************
 'Start storage at top of slot6 and work downwards, code can go in slot 4, but be carful
@@ -234,9 +240,7 @@ con_tout     CON 250         'time out waiting for terminal input appx 100ms
 '
 InternI2c          CON      0          'Internal I2C buss address control
 PLi2c              CON      8          'Payload I2c BUSS address control
-PCF8574address     CON      $40        'internal I2C buss address of PFC8574\
-IO_Expander        CON      $43        'expander for the counter
-H_bridge           CON      $22        'H_bridge controller
+PCF8574address     CON      $40        'internal I2C buss address of PFC8574
 Ebankaddress       CON      $A0        'Address of 256k eerom memory
 Ebank0             CON      $00        'Ebank0 bank address 00000-0FFFF
 Ebank1             CON      $02        'Ebank1 bank address 10000-1FFFF
@@ -441,6 +445,23 @@ TextFinished:
 
      NEXT
      'STORE 4: WRITE LUT,EOF : TempWord1=TempWord1+1
+
+    '-----
+    'inserted telemetry dump after Event table (hopefully), for some reason it cant do down below in code further since the program doesnt process sequentually
+    'it should copy 8-bit entries from slot 2's EEROM then append it to the text file, add slot 3 memory if needed
+    I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [CR] :xcounter=xcounter+1 :PAUSE 10
+
+    FOR UserVar3 = 0 TO 199 STEP 1                    '16 bit counter start from memory location 0xD0 or 208, run to about 0x2D0 or 720
+      STORE TelemSlot: READ (UserVar3+TelemOffset), UserVar4: STORE 4     'switch to EEROM slot 2, read then switch back to slot 4
+      TempWord = UserVar4
+      GOSUB Convert2BCD
+      GOSUB WriteXXX
+      xcounter = xcounter + 1  'writeXXX doesnt do this on the last byte for some reason
+      I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [" "] :xcounter = xcounter+1 :PAUSE 10   'append a space after each number
+    NEXT
+    '-------
+
+
 
     TempReg0 = EOF          'write end of file marker
     I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [TempReg0]  'write charator in ee2ram
