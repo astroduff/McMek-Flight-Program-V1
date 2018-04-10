@@ -1,6 +1,6 @@
 ' {$STAMP BS2p}
 ' {$PBASIC 2.5}
-' {$PORT COM6}
+' {$PORT COM7}
 '**************************************************
 '
 '  Program Slot 1 =  Reset, calibration, and initialization procedures
@@ -425,7 +425,7 @@ PayloadTestP2:
 
 'Turn on Camera LED?
 PayloadTestP3:
-     DEBUG "IO7 Photo LED On",CR
+     DEBUG "Photo LED toggle",CR
      ''I2COUT internI2C, PCF8574address, [%01111111]     'IO7 On         existing code probably wrong pin/old hardware?
      TOGGLE 14
      GOTO PayloadOptionsText

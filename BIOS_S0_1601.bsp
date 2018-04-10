@@ -1,6 +1,6 @@
-' {$STAMP BS2p, BIOS_S1_1601.bsp, BIOS_S2_1601.bsp, BIOS_S3_1601.bsp, BIOS_S4_1601.bsp, BIOS_S5_1601.bsp, BIOS_S6_1601.bsp, BIOS_S7_1601.bsp}
+' {$STAMP BS2p, BIOS_S1_1601.bsp, BIOS_S2_1601.bsp, BIOS_S3_1601.bsp, BIOS_S4_1602.bsp, BIOS_S5_1601.bsp, BIOS_S6_1601.bsp, BIOS_S7_1601.bsp}
 ' {$PBASIC 2.5}
-' {$PORT COM6}
+' {$PORT COM7}
 '**************************************************
 '
 '  Program Slot 0 = Start Up and main control loop for
@@ -10,7 +10,7 @@
 'XXXXXXXX >>  Start Here to Copy Header entries  <<  XXXXXXXXXXXXXXXXXX
 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 '
-version   CON    1601   'Associatitive Event Table.
+version   CON    1602   'Associatitive Event Table.
                        'S2 contains the event table AND actions.
                        'S1 contains test code placeholder
 '

@@ -1,6 +1,6 @@
 ' {$STAMP BS2p}
 ' {$PBASIC 2.5}
-' {$PORT COM6}
+' {$PORT COM7}
 '**************************************************
 '
 '  Program Slot 4 = program
@@ -9,7 +9,7 @@
 'XXXXXXXX >>  Start Here to Copy Header entries  <<  XXXXXXXXXXXXXXXXXX
 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 '
-version   CON    1601
+version   CON    1602
 '
 ' 2012
 ' 1. added test for payload interface boards
@@ -29,7 +29,7 @@ version   CON    1601
 '
 '-----------------------------------------------------------------------------------------
 TelemSlot CON 1                    'program slot to store telemetry for data capture later
-TelemOffset CON 224                'offset in slot memory to store telemetry
+TelemOffset CON 224                'offset in slot memory to store telemetry to ensure it does not collide with any data memory (must check memory map manually)
 '-----------------------------------------------------------------------------------------
 '
 '
@@ -431,7 +431,7 @@ TextFinished:
 
      xcounter = TextBuffer + LUT    'move pointer back to Look Up Table entry point
      I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [CR] : xcounter=xcounter+1 : PAUSE 10    'overwrite EOF
-     FOR UserVar3 = 0 TO 40         'write 40 LUT lines into S4 text table
+     FOR UserVar3 = 0 TO 41         'write 40 LUT lines +1 1 line of state variables into S4 text table
        STORE 4
        FOR UserVar4=0 TO 4          'Each row occupies 16 bytes (15 characters + 1 CR)
          STORE 2: READ (ETable+(UserVar3*5)+UserVar4),TempWord  : STORE 4
@@ -442,7 +442,7 @@ TextFinished:
 
        NEXT
          I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [CR] : xcounter=xcounter+1 : PAUSE 10
-
+         IF  UserVar3=40 THEN  I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [CR] : xcounter=xcounter+1 : PAUSE 10 :  ENDIF
      NEXT
      'STORE 4: WRITE LUT,EOF : TempWord1=TempWord1+1
 
@@ -451,8 +451,8 @@ TextFinished:
     'it should copy 8-bit entries from slot 2's EEROM then append it to the text file, add slot 3 memory if needed
     I2COUT InternI2c, $A0 | TempReg2,xcounter.HIGHBYTE\xcounter.LOWBYTE, [CR] :xcounter=xcounter+1 :PAUSE 10
 
-    FOR UserVar3 = 0 TO 199 STEP 1                    '16 bit counter start from memory location 0xD0 or 208, run to about 0x2D0 or 720
-      STORE TelemSlot: READ (UserVar3+TelemOffset), UserVar4: STORE 4     'switch to EEROM slot 2, read then switch back to slot 4
+    FOR UserVar3 = 0 TO 199 STEP 1                                        'count through the 200 elements of stored data from offset + to to offest + 200 (C8) which should be 00E0-01A8
+      STORE TelemSlot: READ (UserVar3+TelemOffset), UserVar4: STORE 4     'retrive data from beginning of offset location, READ can take any number up to 2047 directly
       TempWord = UserVar4
       GOSUB Convert2BCD
       GOSUB WriteXXX
@@ -777,7 +777,7 @@ BCD2ASCII:
       DATA $00           'Cstatus          state and status of testing chamber
       DATA Word $0000    'TestNumber         location in EEROM
       DATA $00           'ResetNumber        Store number of reset sense last program load
-      DATA "WI"          'IDcodefile         2 alpha ID of MicroLab "ML,FF,XX,??"
+      DATA "SH"          'IDcodefile         2 alpha ID of MicroLab "ML,FF,XX,??"
       DATA "00000"       'LastPhoto          MSD  $30,$30,$30,$30,$30  lsd
       DATA $00           'LastBKupload       last bank uploaded
       DATA $00           'NextBktoLoad       next bank to load
@@ -791,7 +791,7 @@ BCD2ASCII:
 ' For text
 '**************
 '
-ID       DATA "BIOS Templet Program 2013-2014 Ver 131",CR     'Name of School/Project
+ID       DATA "Swin-Hail",CR     'Name of School/Project
          DATA "Data Download Number "
 LastPN   DATA "ML00000",CR                         'photo file name
 ADate    DATA "00/00/00 at "                       'RTC date
